@@ -51,7 +51,7 @@ def create_image_grid(images):
 
         inv_btn.click(fn=save_selected_images, inputs=[selected_images], outputs=[])
 
-    return demo
+        return demo
 
 
 if __name__ == "__main__":
