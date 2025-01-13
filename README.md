@@ -16,7 +16,7 @@ Believe that every data busy person might find this repo useful.
 
 PicManager analyses the input folder, list absolute pathes to images in csv backup files and split the smaller batches, 50* images each as preset for tabs. 
 Then opens Gradio viewer with tab per batch, images and checkboxes. Once select images, enter the label in field and click 'Submit'. 
-Csv file named as label with absolute pathes to selected files will be created in sorted_images folder (you may pass --output) and save in another location. 
+Csv file named as label with absolute pathes to selected files will be created in sorted_images folder (with --output and save in another location). 
 Recommended refresh Gradio to reset ticked checkboxes. 
 
 *I found this number comfortable for review on one page, you may change it in cvs_creator.py
