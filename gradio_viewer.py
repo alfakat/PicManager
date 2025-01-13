@@ -1,58 +1,83 @@
 import os
-import shutil
+import csv
 import gradio as gr
-from gradio_viewer_config import GradioViewerConfig
+from typing import List
+
+from gradio import State
 
 
-def main():
-    input = save_backup(GradioViewerConfig.folder_path)
-    image_paths = [os.path.join(input, f) for f in os.listdir(input)]
-    grid = create_image_grid(image_paths)
-    grid.launch()
+class GradioViewer():
 
+    def __init__(self, batch_list: list):
+        self.batch_list = batch_list
 
-def save_backup(images_folder):
-    shutil.copytree(images_folder, GradioViewerConfig.backup_folder_name, dirs_exist_ok=True)
-    return os.path.join(os.path.abspath(os.getcwd()), GradioViewerConfig.backup_folder_name)
+        tabs = []
+        for csv_name in self.batch_list:
+            tabs.append(self.create_tab(csv_name))
+            print(f'Creating tab for {csv_name}')
 
+        basename_list = [os.path.basename(csv_name) for csv_name in self.batch_list]
+        demo = gr.TabbedInterface(tabs, basename_list)
 
-def move_images(selected_images, dest_folder):
-    os.makedirs(dest_folder, exist_ok=True)
-    for image in selected_images:
-        shutil.move(image, os.path.join(dest_folder, os.path.basename(image)))
+        demo.launch()
 
+    def read_csv(self, images_csv: str) -> List:
+        """Read image paths from the CSV file"""
+        with open(images_csv, mode="r") as file:
+            reader = csv.DictReader(file)
+            return [row["image_path"] for row in reader]
 
-def create_image_grid(images):
-    def update_selected_images(selected_images, image_path, checked):
+    def toggle_image_selection(self, selected_images, image_path, checked):
         if checked:
             selected_images.append(image_path)
         else:
             selected_images.remove(image_path)
         return selected_images
 
-    def save_selected_images(selected_images):
-        move_images(selected_images, GradioViewerConfig.dest_folder)
-        return f"Moved {len(selected_images)} images to {GradioViewerConfig.dest_folder}"
+    def process_selected_images(self, selected_images, label: str, csv_id: str) -> State:
+        sorted_folder = os.path.join(os.path.dirname(__file__), 'sorted_images')
+        os.makedirs(sorted_folder, exist_ok=True)
+        sorted_csv = os.path.join(sorted_folder, rf'{label}_{csv_id}.csv')
 
-    with gr.Blocks() as demo:
-        selected_images = gr.State([])
-        with gr.Row():
-            for j in range(4):  # 4 columns
-                with gr.Column():
-                    for i in range(0, len(images), 5):  # 5 rows
-                        image = images[i + j]
-                        gr.Image(value=image, show_label=False, show_download_button=False)
-                        checkbox = gr.Checkbox(label=os.path.basename(image), container=False)
-                        checkbox.change(fn=update_selected_images, inputs=[selected_images, gr.State(image), checkbox], outputs=selected_images)
+        with open(sorted_csv, mode="a", newline="") as file:
+            writer = csv.writer(file)
+            if os.path.getsize(sorted_csv) == 0:
+                writer.writerow(["image_path"])
+            for image in selected_images:
+                writer.writerow([image])
 
-        with gr.Row():
-            inv_btn = gr.Button("Move to invalid")
-            clear_btn = gr.Button("Clear selections")  # to do
+        return gr.State([])
 
-        inv_btn.click(fn=save_selected_images, inputs=[selected_images], outputs=[])
+    def create_tab(self, csv_name):
+        with gr.Blocks() as tab:
+            selected_images = gr.State([])
+            checkboxes = []
 
-        return demo
+            images_path = self.read_csv(images_csv=csv_name)
+
+            with gr.Row():
+                for image in images_path:
+                    with gr.Column():
+                        gr.Image(value=image, label=os.path.basename(image))
+                        checkbox = gr.Checkbox(label="Select", value=False)
+                        checkboxes.append(checkbox)
+
+                        checkbox.change(
+                            fn=self.toggle_image_selection,
+                            inputs=[selected_images, gr.State(image), checkbox],
+                            outputs=[selected_images])
+
+            with gr.Row():
+                label = gr.Textbox(label="Label")
+                submit_btn = gr.Button("Submit")
+
+            csv_id = gr.State(str(int(csv_name.split('_')[-1].split('.')[0])))
+
+            submit_btn.click(
+                fn=self.process_selected_images,
+                inputs=[selected_images, label, csv_id],
+                outputs=[])
+
+        return tab
 
 
-if __name__ == "__main__":
-    main()

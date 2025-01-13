@@ -1,6 +1,5 @@
 import os
 import csv
-import datetime
 import pandas as pd
 
 
@@ -16,6 +15,8 @@ class CSVCreator():
         num_of_images = self.folder_size(images_folder=self.images_folder)
         if num_of_images >= 50:
             self._batch_dir = self.images_folder_to_batch_csv(images_csv=images_csv)
+        else:
+            self._batch_dir = self.output_folder
 
     def folder_size(self, images_folder: str) -> int:
         """count only images in folder"""
@@ -41,38 +42,19 @@ class CSVCreator():
         """large csv devided into smaller for further easier work with images"""
 
         batch_dir = os.path.join(self.output_folder, f'csv_batch')
-        os.makedirs(batch_dir, exist_ok=True)
-        df = pd.read_csv(images_csv)
+        if not (os.path.exists(batch_dir) and os.listdir(batch_dir)):
+            os.makedirs(batch_dir, exist_ok=True)
+            df = pd.read_csv(images_csv)
 
-        # Divide into smaller csv of 50 rows
-        chunk_size = 50
-        for i in range(0, len(df), chunk_size):
-            chunk = df.iloc[i:i + chunk_size]
-            batch_csv = f"{batch_dir}/images_path_{i // chunk_size + 1}.csv"
-            chunk.to_csv(batch_csv, index=False)
+            # Divide into smaller csv of 50 rows
+            chunk_size = 50
+            for i in range(0, len(df), chunk_size):
+                chunk = df.iloc[i:i + chunk_size]
+                batch_csv = f"{batch_dir}/batch_{i // chunk_size + 1}.csv"
+                chunk.to_csv(batch_csv, index=False)
 
         return batch_dir
 
     @property
     def result(self):
         return self._batch_dir
-
-
-class FilteredCSV():
-    def __init__(self):
-        return
-
-
-class UpdateOrgCSV():
-    def __init__(self):
-        return
-    #
-    # # Update the original CSV to remove invalid paths
-    # with open(csv_file, mode="r") as file:
-    #     rows = list(csv.reader(file))
-    #
-    # with open(csv_file, mode="w", newline="") as file:
-    #     writer = csv.writer(file)
-    #     for row in rows:
-    #         if row[0] not in selected_images:
-    #             writer.writerow(row)
